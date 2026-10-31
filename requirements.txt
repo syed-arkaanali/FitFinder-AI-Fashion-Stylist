@@ -1,0 +1,6 @@
+os
+streamlit
+pandas
+scikit-learn
+joblib
+groq
