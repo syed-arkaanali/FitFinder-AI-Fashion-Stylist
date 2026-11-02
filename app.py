@@ -19,7 +19,11 @@ st.set_page_config(
 
 def get_base64_of_bin_file(bin_file):
     try:
-        with open(bin_file, 'rb') as f:
+        # Get the absolute path of the directory where app.py is located
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, bin_file)
+        
+        with open(file_path, 'rb') as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except FileNotFoundError:
