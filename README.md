@@ -50,13 +50,6 @@ The app features a Pinterest-style inspiration feed.
 - Displays 10 curated outfit images based on the user's predicted body type and gender.
 - **AI Chat Sync** If you ask the AI a specefic style question (e.g., *"Do bootcut pants look good on me?"*), the AI  extracts the keyword and the Inspiration feed instantly updates to show the relevant images.
 
-### Multi-Theme Interface
-The application features a dynamic sidebar theme selector with 4 distinct modes.
-- **White Theme:** Classic, clean aesthetic.
-- **Dark Theme:** High Contrast Modern look.
-- **Indian Culture Theme:** Traditional beige and red colors with custom Indian art background (on sidebar) and structural layout.
-- **Monochromatic Theme:** Deep reds and varied shades for a unified visual style.
-
 ---
 
 ## 🛠️ Technologies Used
