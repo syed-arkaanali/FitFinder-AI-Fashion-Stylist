@@ -45,9 +45,17 @@ FitFinder includes an interactive AI chatbot that can:
 
 The chatbot uses the user's FitFinder prediction results as context to provide more personalized fashion guidance.
 
-### 🎨 Fashion-Inspired Interface
+### Dynamic Style Inspiration (Unsplash API)
+The app features a Pinterest-style inspiration feed.
+- Displays 10 curated outfit images based on the user's predicted body type and gender.
+- **AI Chat Sync** If you ask the AI a specefic style question (e.g., *"Do bootcut pants look good on me?"*), the AI  extracts the keyword and the Inspiration feed instantly updates to show the relevant images.
 
-The application features a custom **Red and Beige fashion-inspired design** built using Streamlit and CSS.
+### Multi-Theme Interface
+The application features a dynamic sidebar theme selector with 4 distinct modes.
+- **White Theme:** Classic, clean aesthetic.
+- **Dark Theme:** High Contrast Modern look.
+- **Indian Culture Theme:** Traditional beige and red colors with custom Indian art background (on sidebar) and structural layout.
+- **Monochromatic Theme:** Deep reds and varied shades for a unified visual style.
 
 ---
 
@@ -60,6 +68,7 @@ The application features a custom **Red and Beige fashion-inspired design** buil
 - Scikit-learn
 - Joblib
 - Groq API
+- Unsplash API (Image Fetching)
 - Generative AI
 - Machine Learning
 
@@ -141,14 +150,14 @@ FitFinder provides **Machine Learning-based predictions** and **AI-generated fas
 
 ## 🔮 Future Improvements
 
-- 👕 Fashion product recommendations
-- 🖼️ Clothing image recommendations
-- 🔍 Product search functionality
-- 🛒 Integration with fashion product datasets
-- 📊 Improved prediction models
-- 📏 Brand-specific size recommendations
-- 🤖 Enhanced AI conversational memory
-- 📱 Improved mobile responsiveness
+- Fashion product recommendations
+- Conversational UI
+- Product search functionality
+- Integration with fashion product datasets
+- Improved prediction models
+- Brand-specific size recommendations
+- Enhanced AI conversational memory
+- Improved mobile responsiveness
 
 ---
 
