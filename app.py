@@ -95,9 +95,13 @@ div[data-testid="stChatMessage"] {{
 # 4. SIDEBAR (IMAGE & INFO)
 # ==========================================
 with st.sidebar:
-    try:
-        st.image("indian_art.jpeg", use_container_width=True)
-    except Exception:
+    # Get the absolute path of the directory where app.py is located
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    image_path = os.path.join(base_dir, "indian_art.jpeg")
+    
+    if os.path.exists(image_path):
+        st.image(image_path, use_container_width=True)
+    else:
         st.warning("Image not found in folder.")
         
     st.divider()
