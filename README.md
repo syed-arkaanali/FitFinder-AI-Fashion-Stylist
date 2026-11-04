@@ -141,6 +141,15 @@ FitFinder provides **Machine Learning-based predictions** and **AI-generated fas
 
 ---
 
+## Model Validation & Out-of-Time Testing
+
+To ensure the FitFinder pipeline generalizes to real-world data and isn't just overfitting the training sets, I performed **Out-of-Time Validation** using the CDC's 2017-2020 Pre-Pandemic NHANES dataset (n=10545) - a datset the model has never seen.
+
+**Results:**
+* **Zero Catastrophic Errors:** Not a single user over 200 lbswas misclassified as "Small".
+* **Logical Size Averages:** The model predicted an average weight of **101.4 lbs** for Small, **131.8 lbs** for Medium, and **193.9 lbs** for Large.
+* **Real-World Distribution:** The Model accurately reflected the current US demographic weight trends, predicting -71% of the test population into the "Large" category.
+
 ## 🔮 Future Improvements
 
 - Fashion product recommendations

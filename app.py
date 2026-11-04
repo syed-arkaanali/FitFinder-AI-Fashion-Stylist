@@ -63,18 +63,32 @@ st.markdown(f"""
 }}
 
 .stButton > button {{
-    background-color: {MAROON};
-    color: {BEIGE} !important;
-    border: 1px solid {MAROON};
+    background-color: {MAROON} !important;
+    color: #FFFFFF !important;
+    border: 2px solid {MAROON} !important;
     border-radius: 10px;
-    font-weight: bold;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    font-family: Arial, sans-serif !important;
+    font-style: normal !important;
+    text-transform: none !important;
+    opacity: 1 !important;
     padding: 10px 20px;
+}}
+
+/* Ensure button text remains visible */
+.stButton > button p {{
+    color: #FFFFFF !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
 }}
 
 .stButton > button:hover {{
     background-color: {DARK_MAROON};
     color: {BEIGE} !important;
     border: 1px solid {BEIGE};
+    text-shadow: none !important
+    box-shadow: none !important
 }}
 
 .stTextInput input,
