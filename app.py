@@ -1,860 +1,215 @@
-
+import streamlit as st
 import os
 import re
-from pathlib import Path
 
-import streamlit as st
-import pandas as pd
-import joblib
-import requests
-from groq import Groq
-
+# Import our custom modules
+from style import apply_theme
+from ml_engine import load_models, predict_fit
+from ai_engine import get_groq_client, get_unsplash_images
 
 # ==========================================
-# 1. PAGE CONFIGURATION
+# 1. PAGE CONFIG & THEME
 # ==========================================
-
-st.set_page_config(
-    page_title="FitFinder | AI Fashion Stylist",
-    page_icon="👕",
-    layout="wide"
-)
-
-BASE_DIR = Path(__file__).resolve().parent
+st.set_page_config(page_title="FitFinder | AI Fashion Stylist", page_icon="👕", layout="wide")
+apply_theme()
 
 # ==========================================
-# 2. COLOR THEME
+# 2. SIDEBAR
 # ==========================================
-
-BEIGE = "#F2E3C6"
-MAROON = "#641E35"
-DARK_MAROON = "#451326"
-LIGHT_BEIGE = "#FAF2E5"
+with st.sidebar:
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        image_path = os.path.join(base_dir, "indian_art.jpeg")
+        if os.path.exists(image_path):
+            st.image(image_path, use_container_width=True)
+    except Exception:
+        pass
+        
+    st.divider()
+    st.markdown("## 👕 FitFinder")
+    st.caption("AI-Powered Fashion Assistant")
+    st.divider()
+    st.markdown("### About")
+    st.write("FitFinder uses Machine Learning to predict body types and recommend clothing sizes.")
+    st.divider()
+    
+    if st.button("Clear Chat", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+    st.divider()
+    st.caption("FitFinder © 2026")
 
 # ==========================================
-# 3. CUSTOM CSS
+# 3. LOAD MODELS
 # ==========================================
-
-st.markdown(f"""
-<style>
-
-.stApp {{
-    background-color: {BEIGE};
-    color: {MAROON};
-}}
-
-.stApp p,
-.stApp h1,
-.stApp h2,
-.stApp h3,
-.stApp h4,
-.stApp label,
-.stApp li,
-.stApp .stMarkdown {{
-    color: {MAROON};
-}}
-
-[data-testid="stSidebar"] {{
-    background-color: {MAROON};
-}}
-
-[data-testid="stSidebar"] * {{
-    color: {BEIGE} !important;
-}}
-
-.stButton > button {{
-    background-color: {MAROON} !important;
-    color: #FFFFFF !important;
-    border: 2px solid {MAROON} !important;
-    border-radius: 10px;
-    font-size: 16px !important;
-    font-weight: 500 !important;
-    font-family: Arial, sans-serif !important;
-    font-style: normal !important;
-    text-transform: none !important;
-    opacity: 1 !important;
-    padding: 10px 20px;
-}}
-
-/* Ensure button text remains visible */
-.stButton > button p {{
-    color: #FFFFFF !important;
-    font-weight: 500 !important;
-    opacity: 1 !important;
-}}
-
-.stButton > button:hover {{
-    background-color: {DARK_MAROON};
-    color: {BEIGE} !important;
-    border: 1px solid {BEIGE};
-    text-shadow: none !important
-    box-shadow: none !important
-}}
-
-.stTextInput input,
-.stNumberInput input,
-.stChatInput textarea {{
-    background-color: {LIGHT_BEIGE} !important;
-    color: {MAROON} !important;
-    border: 1px solid {MAROON};
-}}
-
-.stSelectbox div[data-baseweb="select"] {{
-    background-color: {LIGHT_BEIGE};
-    color: {MAROON};
-}}
-
-.result-card {{
-    background-color: {MAROON};
-    color: {BEIGE};
-    padding: 25px;
-    border-radius: 15px;
-    text-align: center;
-    margin-bottom: 15px;
-    min-height: 155px;
-}}
-
-.result-card p,
-.result-card h2,
-.result-card h1 {{
-    color: {BEIGE} !important;
-}}
-
-.result-label {{
-    font-size: 14px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}}
-
-.result-text {{
-    font-size: 32px;
-    font-weight: bold;
-}}
-
-.info-card {{
-    background-color: {LIGHT_BEIGE};
-    color: {MAROON};
-    border: 1px solid {MAROON};
-    padding: 18px;
-    border-radius: 12px;
-}}
-
-.info-card h3,
-.info-card p {{
-    color: {MAROON} !important;
-}}
-
-div[data-testid="stChatMessage"] {{
-    background-color: {LIGHT_BEIGE};
-    border: 1px solid {MAROON};
-    border-radius: 12px;
-    padding: 12px;
-}}
-
-div[data-testid="stChatMessage"] * {{
-    color: {MAROON} !important;
-}}
-
-.stTabs [data-baseweb="tab-list"] {{
-    background-color: {BEIGE};
-}}
-
-.stTabs [data-baseweb="tab"] {{
-    color: {BEIGE} !important;
-}}
-
-.stTabs [aria-selected="true"] {{
-    background-color: {BEIGE};
-    color: {BEIGE} !important;
-}}
-
-div[data-testid="stMetric"] {{
-    background-color: {MAROON};
-    padding: 15px;
-    border-radius: 12px;
-}}
-
-div[data-testid="stMetric"] * {{
-    color: {BEIGE} !important;
-}}
-
-</style>
-""", unsafe_allow_html=True)
-
+try:
+    bodytype_pipeline, bodytype_labels, size_model, size_columns = load_models()
+except Exception as e:
+    st.error(f"Model loading error: {e}")
+    st.stop()
 
 # ==========================================
 # 4. SESSION STATE
 # ==========================================
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "prediction" not in st.session_state:
-    st.session_state.prediction = None
-
-if "ai_style_query" not in st.session_state:
-    st.session_state.ai_style_query = None
-
+if "messages" not in st.session_state: st.session_state.messages = []
+if "prediction" not in st.session_state: st.session_state.prediction = None
+if "ai_style_query" not in st.session_state: st.session_state.ai_style_query = None
 
 # ==========================================
-# 5. API CONFIGURATION
+# 5. HEADER & INPUTS
 # ==========================================
-
-def get_secret(name):
-    try:
-        value = st.secrets.get(name)
-    except Exception:
-        value = None
-
-    return value or os.getenv(name)
-
-
-def get_groq_client():
-    api_key = get_secret("GROQ_API_KEY")
-
-    if not api_key:
-        return None
-
-    return Groq(api_key=api_key)
-
-
-# ==========================================
-# 6. LOAD ML MODELS
-# ==========================================
-
-@st.cache_resource
-def load_models():
-
-    bodytype_pipeline = joblib.load(
-        BASE_DIR / "models" / "bodytype_pipeline.pkl"
-    )
-
-    bodytype_labels = joblib.load(
-        BASE_DIR / "models" / "bodytype_labels.pkl"
-    )
-
-    size_model = joblib.load(
-        BASE_DIR / "models" / "size_category_model.pkl"
-    )
-
-    size_columns = joblib.load(
-        BASE_DIR / "models" / "model_columns.pkl"
-    )
-
-    return (
-        bodytype_pipeline,
-        bodytype_labels,
-        size_model,
-        size_columns
-    )
-
-
-try:
-    (
-        bodytype_pipeline,
-        bodytype_labels,
-        size_model,
-        size_columns
-    ) = load_models()
-
-except Exception as error:
-    st.error(f"Model loading error: {error}")
-    st.stop()
-
-
-# ==========================================
-# 7. UNSPLASH IMAGE FUNCTION
-# ==========================================
-
-@st.cache_data(show_spinner=False)
-def get_unsplash_images(
-    access_key,
-    body_type,
-    gender,
-    search_query=None,
-    count=10
-):
-
-    if not access_key:
-        return []
-
-    gender_term = (
-        "men" if gender == "Male"
-        else "women" if gender == "Female"
-        else "fashion"
-    )
-
-    if search_query:
-        query = f"{gender_term} {search_query}"
-
-    else:
-        body_term = body_type.lower()
-
-        if "broad" in body_term or "heavy" in body_term:
-            style = "oversized tailored streetwear"
-
-        elif "petite" in body_term:
-            style = "high waisted outfits"
-
-        elif "slim" in body_term:
-            style = "layered minimalist fashion"
-
-        else:
-            style = "classic smart casual outfits"
-
-        query = f"{gender_term} {style}"
-
-    try:
-
-        response = requests.get(
-            "https://api.unsplash.com/search/photos",
-            headers={
-                "Authorization": f"Client-ID {access_key}"
-            },
-            params={
-                "query": query,
-                "per_page": count,
-                "orientation": "portrait"
-            },
-            timeout=15
-        )
-
-        response.raise_for_status()
-
-        results = response.json().get("results", [])
-
-        return [
-            item["urls"]["regular"]
-            for item in results
-            if item.get("urls", {}).get("regular")
-        ]
-
-    except requests.RequestException:
-        return []
-
-
-# ==========================================
-# 8. SIDEBAR
-# ==========================================
-
-with st.sidebar:
-
-    image_path = BASE_DIR / "Indian_art.jpeg"
-
-    if image_path.exists():
-        st.image(str(image_path), use_container_width=True)
-    else:
-        st.warning("Image not found.")
-
-    st.divider()
-
-    st.title("👕 FitFinder")
-
-    st.caption("AI-Powered Fashion Assistant")
-
-    st.divider()
-
-    st.markdown("### About")
-
-    st.write(
-        "FitFinder uses Machine Learning to predict "
-        "body types and recommend clothing sizes."
-    )
-
-    st.divider()
-
-    if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.ai_style_query = None
-        st.rerun()
-
-    st.caption("FitFinder © 2026")
-
-
-# ==========================================
-# 9. HEADER
-# ==========================================
-
-st.markdown(
-    f"""
-    <h1 style="text-align:center; color:{MAROON};">
-        FitFinder 👕
-    </h1>
-    <p style="text-align:center; color:{MAROON};
-    font-size:18px;">
-        Discover Your Perfect Fit. Define Your Style.
-    </p>
-    """,
-    unsafe_allow_html=True
-)
-
-st.divider()
-
-
-# ==========================================
-# 10. USER MEASUREMENTS
-# ==========================================
+st.markdown('<h1 style="text-align: center;">FitFinder 👕</h1>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; font-size: 18px;">Discover Your Perfect Fit. Define Your Style.</p>', unsafe_allow_html=True)
 
 st.markdown("## 📐 Find Your Perfect Fit")
-
 col1, col2, col3 = st.columns(3)
 
 with col1:
-
     st.markdown("### 📏 Vertical Measurements")
-
-    height_cm = st.number_input(
-        "Height (cm)",
-        100.0, 220.0, 170.0, step=1.0
-    )
-
-    leg_cm = st.number_input(
-        "Upper Leg Length (cm)",
-        25.0, 60.0, 40.0, step=0.5
-    )
+    height_cm = st.number_input("Height (cm)", min_value=100.0, max_value=220.0, value=170.0, step=1.0)
+    leg_cm = st.number_input("Upper Leg Length (cm)", min_value=25.0, max_value=60.0, value=40.0, step=0.5)
 
 with col2:
-
     st.markdown("### ⚖️ Body Measurements")
-
-    waist_cm = st.number_input(
-        "Waist Circumference (cm)",
-        40.0, 150.0, 75.0, step=1.0
-    )
-
-    arm_cm = st.number_input(
-        "Arm Length (cm)",
-        20.0, 60.0, 36.0, step=0.5
-    )
+    waist_cm = st.number_input("Waist Circumference (cm)", min_value=40.0, max_value=150.0, value=75.0, step=1.0)
+    arm_cm = st.number_input("Arm Length (cm)", min_value=20.0, max_value=60.0, value=36.0, step=0.5)
 
 with col3:
+    st.markdown("### ⚖️ Personal Information")
+    gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+    weight_lbs = st.number_input("Weight (lbs)", min_value=60.0, max_value=350.0, value=140.0, step=1.0)
+    age = st.number_input("Age", min_value=18, max_value=100, value=28, step=1)
 
-    st.markdown("### 👤 Personal Information")
-
-    gender = st.selectbox(
-        "Gender",
-        ["Male", "Female", "Other"]
-    )
-
-    weight_lbs = st.number_input(
-        "Weight (lbs)",
-        60.0, 350.0, 140.0, step=1.0
-    )
-
-    age = st.number_input(
-        "Age",
-        18, 100, 28
-    )
-
+height_inches = height_cm / 2.54
 
 # ==========================================
-# 11. ML PREDICTION
+# 6. PREDICTION LOGIC
 # ==========================================
-
 if st.button("✨ Find My Perfect Fit", use_container_width=True):
-
     with st.spinner("Analyzing your measurements..."):
-
-        try:
-
-            height_inches = height_cm / 2.54
-
-            bodytype_input = pd.DataFrame([{
-                "Waist_Circumference_cm": waist_cm,
-                "Height_cm": height_cm,
-                "Arm_Length_cm": arm_cm,
-                "UpperLeg_Length_cm": leg_cm
-            }])
-
-            cluster_id = bodytype_pipeline.predict(
-                bodytype_input
-            )[0]
-
-            predicted_body_type = bodytype_labels[cluster_id]
-
-            bmi = (
-                weight_lbs / (height_inches ** 2)
-            ) * 703
-
-            final_body_type = predicted_body_type
-
-            # Existing FitFinder body-type adjustment
-            if predicted_body_type == "Tall-Heavy" and bmi < 18.5:
-                final_body_type = "Slim-Tall"
-
-            # Size prediction
-            size_input = pd.DataFrame([{
-                "age": age,
-                "height_inches": height_inches,
-                "weight_lbs": weight_lbs,
-                "mapped_body_type": final_body_type
-            }])
-
-            size_input = pd.get_dummies(
-                size_input,
-                columns=["mapped_body_type"]
-            )
-
-            size_input = size_input.reindex(
-                columns=size_columns,
-                fill_value=0
-            )
-
-            predicted_size = size_model.predict(size_input)[0]
-
-            # Save prediction
-            st.session_state.prediction = {
-                "body_type": str(final_body_type),
-                "size": str(predicted_size),
-                "gender": gender,
-                "height": height_cm,
-                "weight": weight_lbs,
-                "waist": waist_cm,
-                "arm": arm_cm,
-                "leg": leg_cm,
-                "age": age,
-                "bmi": round(bmi, 2)
-            }
-
-            st.session_state.messages = []
-            st.session_state.ai_style_query = None
-
-        except Exception as error:
-
-            st.error(f"Prediction error: {error}")
-
-
+        
+        # Call the modular ML engine
+        results = predict_fit(
+            bodytype_pipeline, bodytype_labels, size_model, size_columns, 
+            waist_cm, height_cm, arm_cm, leg_cm, age, weight_lbs, height_inches
+        )
+        
+        # Save to session state
+        st.session_state.prediction = {
+            "body_type": results["body_type"], 
+            "size": results["size"], 
+            "gender": gender,
+            "height": height_cm, 
+            "weight": weight_lbs, 
+            "waist": waist_cm,
+            "arm": arm_cm, 
+            "leg": leg_cm, 
+            "age": age, 
+            "bmi": results["bmi"]
+        }
+        st.session_state.messages = []
+        st.session_state.ai_style_query = None
 
 # ==========================================
-# 12. TABS AND RESULTS
+# 7. TABS & DISPLAY
 # ==========================================
+if st.session_state.prediction is not None:
+    result = st.session_state.prediction
+    st.divider()
+    
+    tab1, tab2, tab3 = st.tabs(["📐 Fit & Size", "📸 Style Inspiration", "💬 AI Stylist"])
 
-tab1, tab2, tab3 = st.tabs([
-    "📐 Fit & Size",
-    "📸 Style Inspiration",
-    "💬 AI Stylist"
-])
-
-
-# ------------------------------------------
-# TAB 1: PERSONALIZED FIT & SIZE
-# ------------------------------------------
-
-with tab1:
-
-    if st.session_state.prediction is not None:
-
-        result = st.session_state.prediction
-
+    # TAB 1: FIT & SIZE
+    with tab1:
         st.markdown("## 🎉 Your Personalized Results")
-
         res_col1, res_col2 = st.columns(2)
-
+        
         with res_col1:
-
-            st.markdown(
-                f"""
-                <div class="result-card">
-                    <p class="result-label">Your Body Shape</p>
-                    <h1 class="result-text">
-                        {result['body_type']}
-                    </h1>
-                    <p>AI Body Type Prediction</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
+            st.markdown(f"""
+            <div class="result-card">
+                <p class="result-label">Your Body Shape</p>
+                <p class="result-text">{result['body_type']}</p>
+                <p style="color:#C12B2B;font-weight:bold;">AI Body Type Prediction</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
         with res_col2:
+            st.markdown(f"""
+            <div class="result-card">
+                <p class="result-label">Recommended Clothing Size</p>
+                <p class="result-text">{result['size']}</p>
+                <p style="color:#C12B2B;font-weight:bold;">ML Size Prediction</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        st.info(f"Your predicted body type is **{result['body_type']}** and your recommended size is **{result['size']}**. Always check individual brand size charts.")
 
-            st.markdown(
-                f"""
-                <div class="result-card">
-                    <p class="result-label">
-                        Recommended Clothing Size
-                    </p>
-                    <h1 class="result-text">
-                        {result['size']}
-                    </h1>
-                    <p>ML Size Prediction</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        st.markdown("### 📊 Your Body Profile")
-
-        metric1, metric2, metric3 = st.columns(3)
-
-        with metric1:
-            st.metric("BMI", result["bmi"])
-
-        with metric2:
-            st.metric("Height", f"{result['height']} cm")
-
-        with metric3:
-            st.metric("Weight", f"{result['weight']} lbs")
-
-        st.divider()
-
-        st.markdown("### 📏 Your Measurement Details")
-
-        detail1, detail2, detail3 = st.columns(3)
-
-        with detail1:
-            st.metric("Waist", f"{result['waist']} cm")
-
-        with detail2:
-            st.metric("Arm Length", f"{result['arm']} cm")
-
-        with detail3:
-            st.metric("Upper Leg", f"{result['leg']} cm")
-
-        st.divider()
-
-        st.markdown("### 👗 Your Fit Recommendation")
-
-        st.success(
-            f"Your ML model recommends **{result['size']}** "
-            f"for your predicted **{result['body_type']}** body type."
-        )
-
-        st.info(
-            "This is an ML-based size estimate. Actual clothing "
-            "sizes vary between brands and garment styles. "
-            "Always check the brand's size chart."
-        )
-
-    else:
-
-        st.info(
-            "👆 Enter your measurements above and click "
-            "'Find My Perfect Fit' to see your personalized results."
-        )
-
-
-# ------------------------------------------
-# TAB 2: STYLE INSPIRATION
-# ------------------------------------------
-
-with tab2:
-
-    st.markdown("## 📸 Outfit Inspiration")
-
-    if st.session_state.prediction is not None:
-
-        result = st.session_state.prediction
-
+    # TAB 2: STYLE INSPIRATION
+    with tab2:
+        st.markdown("## 📸 Outfit Inspiration")
         ai_query = st.session_state.ai_style_query
-
-        if ai_query:
-
-            st.caption(
-                f"Showing fashion inspiration for: **{ai_query}**"
-            )
-
-        else:
-
-            st.caption(
-                f"Curated styles for **{result['gender']} "
-                f"{result['body_type']}** body shape."
-            )
-
-        access_key = get_secret("UNSPLASH_ACCESS_KEY")
-
+        
+        if ai_query: 
+            st.caption(f"Showing results for your chat request: **{ai_query}**")
+        else: 
+            st.caption(f"Curated styles for **{result['gender']} {result['body_type']}** shapes.")
+        
         with st.spinner("Loading fashion inspiration..."):
-
-            images = get_unsplash_images(
-                access_key,
-                result["body_type"],
-                result["gender"],
-                search_query=ai_query,
-                count=10
-            )
-
+            images = get_unsplash_images(result['body_type'], result['gender'], search_query=ai_query, count=10)
+            
         if images:
-
             cols = st.columns(2)
-
-            for index, image_url in enumerate(images):
-
-                with cols[index % 2]:
-
-                    st.image(
-                        image_url,
-                        use_container_width=True
-                    )
-
+            for idx, img_url in enumerate(images):
+                with cols[idx % 2]:
+                    st.image(img_url, use_container_width=True)
+                    st.write("") 
         else:
+            st.warning("Could not load images. Check Unsplash API key.")
 
-            st.warning(
-                "Could not load images. Please check your "
-                "Unsplash API key and API request limits."
-            )
-
-    else:
-
-        st.info(
-            "Complete your measurements first to unlock "
-            "personalized fashion inspiration."
-        )
-
-
-# ------------------------------------------
-# TAB 3: AI STYLIST
-# ------------------------------------------
-
-with tab3:
-
-    st.markdown("## 👗 FitFinder AI Stylist")
-
-    if st.session_state.prediction is not None:
-
-        result = st.session_state.prediction
-
-        # Display previous messages
-
+    # TAB 3: AI STYLIST
+    with tab3:
+        st.markdown("## 👗 FitFinder AI Stylist")
+        st.caption("Your personal fashion assistant.")
+        
         for message in st.session_state.messages:
-
-            avatar = (
-                "👤" if message["role"] == "user"
-                else "🔮"
-            )
-
-            with st.chat_message(
-                message["role"],
-                avatar=avatar
-            ):
-
+            with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🔮"):
                 st.markdown(message["content"])
 
-        # Chat input
-
-        prompt = st.chat_input(
-            "Ask your AI Stylist anything..."
-        )
-
+        prompt = st.chat_input("Ask your AI Stylist anything...")
         if prompt:
-
-            st.session_state.ai_style_query = None
-
-            st.session_state.messages.append({
-                "role": "user",
-                "content": prompt
-            })
-
+            st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user", avatar="👤"):
                 st.markdown(prompt)
 
             with st.chat_message("assistant", avatar="🔮"):
-
-                with st.spinner("Your stylist is thinking..."):
-
+                with st.spinner("Stylist is thinking..."):
                     try:
-
                         client = get_groq_client()
-
                         if client is None:
-
-                            st.error(
-                                "Groq API key not found. "
-                                "Configure GROQ_API_KEY in Streamlit Secrets."
-                            )
-
+                            st.error("Groq API key not found.")
                         else:
-
                             system_prompt = f"""
-You are FitFinder AI Stylist.
-
-User Profile:
-Gender: {result['gender']}
-Body Type: {result['body_type']}
-Recommended Size: {result['size']}
-
-Give friendly and practical fashion recommendations.
-
-Suggest suitable outfits, colors, fabrics and styling ideas.
-
-Use the user's body type and size when relevant.
-
-If the user asks about a specific clothing item or
-fashion style, add a final tag in exactly this format:
-
-[STYLE: keyword]
-
-The tag must be the very last part of your response.
-
-Do not add this tag for unrelated questions.
-"""
-
-                            chat_history = [
-                                {
-                                    "role": "system",
-                                    "content": system_prompt
-                                }
-                            ] + st.session_state.messages[-12:]
-
-                            response = client.chat.completions.create(
-                                model="openai/gpt-oss-20b",
-                                messages=chat_history
-                            )
-
-                            answer = (
-                                response.choices[0].message.content or ""
-                            ).strip()
-
-                            # Extract style keyword
-
-                            match = re.search(
-                                r"\[STYLE:\s*(.*?)\]",
-                                answer,
-                                flags=re.IGNORECASE
-                            )
-
+                            You are FitFinder AI Stylist.
+                            Gender: {result['gender']}, Body Type: {result['body_type']}, Size: {result['size']}
+                            
+                            Recommend outfits, colors, and styles based on these measurements.
+                            CRITICAL INSTRUCTION: If the user asks about a specific clothing item or style (e.g., 'bootcut pants', 'boho'), you MUST include the exact tag [STYLE: keyword] at the VERY END of your response.
+                            """
+                            
+                            chat_history = [{"role": "system", "content": system_prompt}] + st.session_state.messages[-12:]
+                            response = client.chat.completions.create(model="openai/gpt-oss-20b", messages=chat_history)
+                            answer = response.choices[0].message.content
+                            
+                            match = re.search(r'\[STYLE:\s*([^\]]+)\]', answer, re.IGNORECASE)
                             if match:
-
-                                keyword = match.group(1).strip()
-
-                                if keyword:
-                                    st.session_state.ai_style_query = keyword
-
-                                answer = re.sub(
-                                    r"\[STYLE:\s*.*?\]",
-                                    "",
-                                    answer,
-                                    flags=re.IGNORECASE
-                                ).strip()
-
-                            if not answer:
-                                answer = "Please try asking another question."
-
+                                st.session_state.ai_style_query = match.group(1).strip()
+                                answer = re.sub(r'\[STYLE:\s*[^\]]+\]', '', answer, flags=re.IGNORECASE).strip()
+                            
                             st.markdown(answer)
+                            st.session_state.messages.append({"role": "assistant", "content": answer})
+                            st.rerun() 
+                    except Exception as e:
+                        st.error(f"Groq API Error: {e}")
 
-                            st.session_state.messages.append({
-                                "role": "assistant",
-                                "content": answer
-                            })
-
-                            st.rerun()
-
-                    except Exception as error:
-
-                        st.error(f"Groq API Error: {error}")
-
-    else:
-
-        st.info(
-            "Complete your measurements first to unlock "
-            "your personalized AI Stylist."
-        )
-
-
-# ==========================================
-# 13. FOOTER
-# ==========================================
-
-st.divider()
-
-st.caption(
-    "FitFinder © 2026 | Your Personal AI Fashion Assistant"
-)
+else:
+    st.info("👆 Please enter your measurements above and click 'Find My Perfect Fit' to unlock your tabs.")
