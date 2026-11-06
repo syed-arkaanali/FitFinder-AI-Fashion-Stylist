@@ -19,7 +19,7 @@ apply_theme()
 with st.sidebar:
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        image_path = os.path.join(base_dir, "indian_art.jpeg")
+        image_path = os.path.join(base_dir, "Indian_art.jpeg")
         if os.path.exists(image_path):
             st.image(image_path, use_container_width=True)
     except Exception:
@@ -142,8 +142,15 @@ if st.session_state.prediction is not None:
             </div>
             """, unsafe_allow_html=True)
             
-        st.info(f"Your predicted body type is **{result['body_type']}** and your recommended size is **{result['size']}**. Always check individual brand size charts.")
-
+        # Using st.html to bypass Streamlit's CSS constraints
+        st.html(f"""
+        <div style="background-color: #691313; padding: 15px; border-radius: 10px; border-left: 5px solid #C12B2B; margin-top: 20px;">
+            <p style="color: #FFDC9C !important; margin: 0; font-size: 16px; font-family: sans-serif;">
+                Your predicted body type is <b>{result['body_type']}</b> and your recommended size is <b>{result['size']}</b>. Always check individual brand size charts.
+            </p>
+        </div>
+        """)
+        
     # TAB 2: STYLE INSPIRATION
     with tab2:
         st.markdown("## 📸 Outfit Inspiration")

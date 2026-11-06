@@ -32,6 +32,11 @@ def apply_theme():
     h1, h2, h3, p, span, div, label {{ 
         color: {text_color} !important; 
     }}
+
+    div[data-testid="stAlert"] p,
+    div[data-testid="stAlert"] span {{
+        color: #FFDC9C !important
+    }}
     
     /* Sidebar Styling */
     [data-testid="stSidebar"] {{ 
@@ -126,5 +131,6 @@ def apply_theme():
     .stButton > button:hover {{
         opacity: 0.8;
     }}
+
     </style>
     """, unsafe_allow_html=True)
